@@ -3,16 +3,17 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/Cod-e-Codes/tuitar/internal/audio"
+	"github.com/Cod-e-Codes/tuitar/internal/models"
+	"github.com/Cod-e-Codes/tuitar/internal/storage"
+	"github.com/Cod-e-Codes/tuitar/internal/ui/components"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/Cod-e-Codes/tuitar/internal/midi"
-	"github.com/Cod-e-Codes/tuitar/internal/models"
-	"github.com/Cod-e-Codes/tuitar/internal/storage"
-	"github.com/Cod-e-Codes/tuitar/internal/ui/components"
 )
 
 type inputMode int
@@ -24,10 +25,10 @@ const (
 )
 
 type Model struct {
-	state      models.SessionState
-	storage    storage.Storage
-	tabs       []models.Tab
-	midiPlayer *midi.Player
+	state       models.SessionState
+	storage     storage.Storage
+	tabs        []models.Tab
+	audioPlayer *audio.Player
 
 	// Components
 	tabEditor  components.TabEditorModel
@@ -58,6 +59,7 @@ type KeyMap struct {
 	Normal    key.Binding
 	Browser   key.Binding
 	Delete    key.Binding
+	DeleteTab key.Binding
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {
@@ -69,7 +71,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.Left, k.Right},
 		{k.Enter, k.Save, k.New},
 		{k.Insert, k.Normal, k.Browser},
-		{k.Play, k.Delete, k.Help, k.Quit},
+		{k.Play, k.Delete, k.DeleteTab, k.Help, k.Quit},
 	}
 }
 
@@ -131,6 +133,10 @@ func NewKeyMap() KeyMap {
 			key.WithKeys("x"),
 			key.WithHelp("x", "delete fret"),
 		),
+		DeleteTab: key.NewBinding(
+			key.WithKeys("d"),
+			key.WithHelp("d", "delete tab"),
+		),
 	}
 }
 
@@ -142,14 +148,14 @@ func NewModel(storage storage.Storage) Model {
 	textInput.Focus()
 
 	m := Model{
-		storage:    storage,
-		tabs:       tabs,
-		keys:       NewKeyMap(),
-		help:       help.New(),
-		tabBrowser: components.NewTabBrowser(tabs),
-		statusBar:  components.NewStatusBar(),
-		textInput:  textInput,
-		midiPlayer: midi.NewPlayer(),
+		storage:     storage,
+		tabs:        tabs,
+		keys:        NewKeyMap(),
+		help:        help.New(),
+		tabBrowser:  components.NewTabBrowser(tabs),
+		statusBar:   components.NewStatusBar(),
+		textInput:   textInput,
+		audioPlayer: audio.NewPlayer(),
 	}
 
 	m.state.ViewMode = models.ViewBrowser
@@ -159,13 +165,33 @@ func NewModel(storage storage.Storage) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.SetWindowTitle("Tuitar - Guitar Tab TUI")
+	return tea.Batch(
+		tea.SetWindowTitle("Tuitar - Guitar Tab TUI"),
+		m.tick(),
+	)
 }
+
+// tick returns a command that sends a tick message every 100ms for playback updates
+func (m Model) tick() tea.Cmd {
+	return tea.Tick(100*time.Millisecond, func(time.Time) tea.Msg {
+		return tickMsg{}
+	})
+}
+
+type tickMsg struct{}
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case tickMsg:
+		// Update playback highlights if playing
+		if m.audioPlayer.IsPlaying() && m.state.ViewMode == models.ViewEditor {
+			highlighted := m.audioPlayer.GetHighlighted()
+			m.tabEditor.SetHighlightedPositions(highlighted)
+		}
+		return m, m.tick()
+
 	case tea.WindowSizeMsg:
 		m.windowSize = msg
 		m.tabEditor.SetSize(msg.Width, msg.Height-3)
@@ -179,8 +205,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, m.keys.Quit):
-			if m.midiPlayer.IsPlaying() {
-				m.midiPlayer.Stop()
+			if m.audioPlayer.IsPlaying() {
+				m.audioPlayer.Stop()
 			}
 			return m, tea.Quit
 
@@ -200,13 +226,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.New):
-			newTab := models.NewEmptyTab("New Tab")
+			newTab := models.NewTestTab("New Tab")
 			m.state.CurrentTab = newTab
 			m.tabEditor = components.NewTabEditor(newTab)
 			m.tabEditor.SetEditMode(models.EditNormal)
 			m.state.ViewMode = models.ViewEditor
 			m.state.EditMode = models.EditNormal
-			m.statusBar.SetStatus("Created new tab")
+			m.statusBar.SetStatus("Created new tab with test notes")
 			return m, nil
 
 		case key.Matches(msg, m.keys.Save):
@@ -225,11 +251,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Play):
 			if m.state.ViewMode == models.ViewEditor && m.state.CurrentTab != nil {
-				if m.midiPlayer.IsPlaying() {
-					m.midiPlayer.Stop()
+				if m.audioPlayer.IsPlaying() {
+					m.audioPlayer.Stop()
 					m.statusBar.SetStatus("Playback stopped")
 				} else {
-					err := m.midiPlayer.PlayTab(m.state.CurrentTab)
+					err := m.audioPlayer.PlayTab(m.state.CurrentTab)
 					if err != nil {
 						m.statusBar.SetStatus("Playback error: " + err.Error())
 					} else {
@@ -309,6 +335,27 @@ func (m Model) updateBrowser(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusBar.SetStatus("Editing: " + tabCopy.Name)
 		}
 		return m, nil
+
+	case key.Matches(msg, m.keys.DeleteTab):
+		if len(m.tabs) > 0 && m.tabBrowser.Cursor() < len(m.tabs) {
+			selectedTab := &m.tabs[m.tabBrowser.Cursor()]
+			err := m.storage.DeleteTab(selectedTab.ID)
+			if err != nil {
+				m.statusBar.SetStatus("Error deleting tab: " + err.Error())
+			} else {
+				m.statusBar.SetStatus("Deleted tab: " + selectedTab.Name)
+				// Refresh tabs list
+				if tabs, err := m.storage.LoadAllTabs(); err == nil {
+					m.tabs = tabs
+					m.tabBrowser.SetTabs(tabs)
+					// Adjust cursor if it's now out of bounds
+					if m.tabBrowser.Cursor() >= len(m.tabs) && len(m.tabs) > 0 {
+						m.tabBrowser.SetCursor(len(m.tabs) - 1)
+					}
+				}
+			}
+		}
+		return m, nil
 	}
 
 	m.tabBrowser, cmd = m.tabBrowser.Update(msg)
@@ -334,7 +381,7 @@ func (m Model) updateEditor(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Pass the message to the tab editor
 	m.tabEditor, cmd = m.tabEditor.Update(msg)
-	
+
 	// Update the current tab if it has changed
 	if m.tabEditor.HasChanged() {
 		m.state.CurrentTab = m.tabEditor.GetTab()
@@ -387,7 +434,7 @@ func (m Model) renderInputDialog() string {
 			lipgloss.NewStyle().Faint(true).Render("Enter: Save • Esc: Cancel"),
 		))
 
-	return lipgloss.Place(m.windowSize.Width, m.windowSize.Height, 
+	return lipgloss.Place(m.windowSize.Width, m.windowSize.Height,
 		lipgloss.Center, lipgloss.Center, dialog)
 }
 
@@ -407,13 +454,19 @@ func (m Model) renderHelp() string {
 			lipgloss.NewStyle().Bold(true).Render("Browser Mode:"),
 			"  ↑/k, ↓/j      - Navigate tab list",
 			"  Enter         - Edit selected tab",
+			"  d             - Delete selected tab",
 			"",
 			lipgloss.NewStyle().Bold(true).Render("Editor Mode - Normal:"),
 			"  ↑/k, ↓/j      - Move between strings",
 			"  ←/h, →/l      - Move along string",
+			"  w/b           - Move to next/previous measure",
+			"  g/$           - Move to start/end of measure",
+			"  PgUp/PgDn     - Page up/down scrolling",
 			"  i             - Enter insert mode",
 			"  x             - Delete fret (replace with -)",
 			"  Space         - Play/pause tab",
+			"  m             - Add new measure",
+			"  M             - Remove last measure",
 			"",
 			lipgloss.NewStyle().Bold(true).Render("Editor Mode - Insert:"),
 			"  0-9           - Insert fret number (auto-advance)",
@@ -436,7 +489,7 @@ func (m Model) renderBrowser() string {
 
 	help := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8")).
-		Render("Enter: Edit • Ctrl+N: New • Tab: Editor • ?: Help • Q: Quit")
+		Render("Enter: Edit • Ctrl+N: New • d: Delete • Tab: Editor • ?: Help • Q: Quit")
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		title,
@@ -459,7 +512,7 @@ func (m Model) renderEditor() string {
 
 	// Show playback status
 	playStatus := ""
-	if m.midiPlayer.IsPlaying() {
+	if m.audioPlayer.IsPlaying() {
 		playStatus = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("10")).
 			Render(" [PLAYING]")
@@ -485,7 +538,7 @@ func (m Model) renderEditor() string {
 	} else {
 		help = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8")).
-			Render("I: Insert • X: Delete • Space: Play • Ctrl+S: Save • Tab: Browser • Arrows: Navigate")
+			Render("I: Insert • X: Delete • Space: Play • m: Add Measure • Ctrl+S: Save • Tab: Browser • Arrows: Navigate")
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left,

@@ -2,12 +2,13 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/Cod-e-Codes/tuitar/internal/models"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/Cod-e-Codes/tuitar/internal/models"
 )
 
 type HighlightUpdateMsg struct {
@@ -15,14 +16,15 @@ type HighlightUpdateMsg struct {
 }
 
 type TabEditorModel struct {
-	tab             *models.Tab
-	cursor          models.Position
-	viewport        viewport.Model
-	width           int
-	height          int
-	changed         bool
-	editMode        models.EditMode
-	highlightedPos  []models.Position // For playback highlighting
+	tab            *models.Tab
+	cursor         models.Position
+	viewport       viewport.Model
+	width          int
+	height         int
+	changed        bool
+	editMode       models.EditMode
+	highlightedPos []models.Position // For playback highlighting
+	showHelp       bool              // Show measure management help
 }
 
 func NewTabEditor(tab *models.Tab) TabEditorModel {
@@ -30,14 +32,9 @@ func NewTabEditor(tab *models.Tab) TabEditorModel {
 
 	// Initialize tab content if it's empty
 	if tab.Content[0] == "" {
-		tab.Content = [6]string{
-			"----------------",
-			"----------------",
-			"----------------",
-			"----------------",
-			"----------------",
-			"----------------",
-		}
+		emptyLine := "----------------" + "----------------" + "----------------" + "----------------"
+		tab.Content = [6]string{emptyLine, emptyLine, emptyLine, emptyLine, emptyLine, emptyLine}
+		tab.Measures = 4
 	}
 
 	return TabEditorModel{
@@ -89,6 +86,58 @@ func (m TabEditorModel) Update(msg tea.Msg) (TabEditorModel, tea.Cmd) {
 			if m.cursor.String < 5 {
 				m.cursor.String++
 			}
+
+		// Page scrolling
+		case "pgup":
+			// Scroll up by viewport height
+			for i := 0; i < m.viewport.Height; i++ {
+				m.viewport.ScrollUp(1)
+			}
+		case "pgdown":
+			// Scroll down by viewport height
+			for i := 0; i < m.viewport.Height; i++ {
+				m.viewport.ScrollDown(1)
+			}
+
+		// More intuitive cursor movement
+		case "w":
+			// Move to next word/measure boundary (forward)
+			if m.editMode == models.EditNormal {
+				// Move to next measure boundary
+				nextMeasurePos := ((m.cursor.Position / models.MeasureLength) + 1) * models.MeasureLength
+				maxPos := len(m.tab.Content[m.cursor.String]) - 1
+				if nextMeasurePos <= maxPos {
+					m.cursor.Position = nextMeasurePos
+				} else {
+					m.cursor.Position = maxPos
+				}
+			}
+		case "b":
+			// Move to previous word/measure boundary (backward)
+			if m.editMode == models.EditNormal {
+				// Move to previous measure boundary
+				if m.cursor.Position > 0 {
+					prevMeasurePos := ((m.cursor.Position - 1) / models.MeasureLength) * models.MeasureLength
+					m.cursor.Position = prevMeasurePos
+				}
+			}
+		case "g":
+			// Move to beginning of current measure (like 'gg' in vim)
+			if m.editMode == models.EditNormal {
+				measureStart := (m.cursor.Position / models.MeasureLength) * models.MeasureLength
+				m.cursor.Position = measureStart
+			}
+		case "$":
+			// Move to end of current measure
+			if m.editMode == models.EditNormal {
+				measureEnd := ((m.cursor.Position/models.MeasureLength)+1)*models.MeasureLength - 1
+				maxPos := len(m.tab.Content[m.cursor.String]) - 1
+				if measureEnd <= maxPos {
+					m.cursor.Position = measureEnd
+				} else {
+					m.cursor.Position = maxPos
+				}
+			}
 		case "home":
 			m.cursor.Position = 0
 		case "end":
@@ -124,6 +173,29 @@ func (m TabEditorModel) Update(msg tea.Msg) (TabEditorModel, tea.Cmd) {
 			if m.editMode == models.EditInsert && m.cursor.Position > 0 {
 				m.cursor.Position--
 				m.deleteCharAt(m.cursor)
+				m.changed = true
+			}
+
+		// Measure management keys (work in normal mode)
+		// Use 'm' for add measure and 'M' for remove measure (simpler than Ctrl+M which conflicts with Enter)
+		case "m":
+			if m.editMode == models.EditNormal {
+				m.tab.AddMeasure()
+				m.changed = true
+			}
+		case "M":
+			if m.editMode == models.EditNormal {
+				m.tab.RemoveMeasure()
+				// Adjust cursor position if it's beyond the new length
+				maxPos := m.tab.GetTotalLength() - 1
+				if m.cursor.Position > maxPos {
+					m.cursor.Position = maxPos
+				}
+				m.changed = true
+			}
+		case "?":
+			if m.editMode == models.EditNormal {
+				m.showHelp = !m.showHelp
 				m.changed = true
 			}
 		}
@@ -166,46 +238,177 @@ func (m TabEditorModel) View() string {
 		return false
 	}
 
-	for i, label := range stringLabels {
-		line := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("14")).
-			Render(label + "|")
+	// Helper to check if position is at a measure boundary
+	isMeasureBoundary := func(pos int) bool {
+		return pos > 0 && pos%models.MeasureLength == 0
+	}
 
-		// Render tab content with cursor and playback highlighting
-		content := m.tab.Content[i]
-		for pos, char := range content {
-			style := lipgloss.NewStyle()
+	// Calculate how many measures can fit on one line
+	// Use a reasonable default width if width is 0 (not set yet)
+	displayWidth := m.width
+	if displayWidth == 0 {
+		displayWidth = 120 // Default terminal width
+	}
 
-			// Highlight cursor position (takes precedence)
-			if m.cursor.String == i && m.cursor.Position == pos {
-				if m.editMode == models.EditInsert {
-					style = style.Background(lipgloss.Color("11")).Foreground(lipgloss.Color("0"))
-				} else {
-					style = style.Background(lipgloss.Color("12")).Foreground(lipgloss.Color("15"))
-				}
-			} else if isHighlighted(i, pos) {
-				// Highlight playback positions with cyan background
-				style = style.Background(lipgloss.Color("37")).Foreground(lipgloss.Color("0"))
-			}
+	// Account for string labels (3 chars) + pipe (1 char) + pipe at end (1 char) = 5 chars
+	availableWidth := displayWidth - 5
+	measuresPerLine := availableWidth / (models.MeasureLength + 1) // +1 for spacing between measures
+	if measuresPerLine < 1 {
+		measuresPerLine = 1
+	}
 
-			line += style.Render(string(char))
+	// Debug: let's be more generous with side-by-side display
+	// Try to fit at least 2-3 measures side by side if possible
+	if availableWidth >= (models.MeasureLength*2)+2 {
+		measuresPerLine = 2
+	}
+	if availableWidth >= (models.MeasureLength*3)+3 {
+		measuresPerLine = 3
+	}
+	if availableWidth >= (models.MeasureLength*4)+4 {
+		measuresPerLine = 4
+	}
+
+	// Render measures in blocks
+	for measureStart := 0; measureStart < m.tab.GetMeasureCount(); measureStart += measuresPerLine {
+		// Add spacing between measure blocks (except for the first one)
+		if measureStart > 0 {
+			lines = append(lines, "")
 		}
 
-		line += lipgloss.NewStyle().
-			Foreground(lipgloss.Color("14")).
-			Render("|")
+		// Determine how many measures to render in this block
+		measuresInBlock := measuresPerLine
+		if measureStart+measuresInBlock > m.tab.GetMeasureCount() {
+			measuresInBlock = m.tab.GetMeasureCount() - measureStart
+		}
 
-		lines = append(lines, line)
+		// Render each string for this block of measures
+		for i, label := range stringLabels {
+			line := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("14")).
+				Render(label + "|")
+
+			// Render each measure in this block
+			for measureIdx := 0; measureIdx < measuresInBlock; measureIdx++ {
+				actualMeasureIdx := measureStart + measureIdx
+				measureStartPos := actualMeasureIdx * models.MeasureLength
+				measureEndPos := measureStartPos + models.MeasureLength
+
+				// Get the content for this measure
+				content := m.tab.Content[i]
+				if measureEndPos > len(content) {
+					measureEndPos = len(content)
+				}
+
+				// Render this measure
+				for pos := measureStartPos; pos < measureEndPos; pos++ {
+					if pos >= len(content) {
+						line += "-" // Fill with dashes if content is shorter
+						continue
+					}
+
+					char := content[pos]
+					style := lipgloss.NewStyle()
+
+					// Highlight cursor position (takes precedence)
+					if m.cursor.String == i && m.cursor.Position == pos {
+						if m.editMode == models.EditInsert {
+							style = style.Background(lipgloss.Color("11")).Foreground(lipgloss.Color("0"))
+						} else {
+							style = style.Background(lipgloss.Color("12")).Foreground(lipgloss.Color("15"))
+						}
+					} else if isHighlighted(i, pos) {
+						// Highlight playback positions with cyan background
+						style = style.Background(lipgloss.Color("37")).Foreground(lipgloss.Color("0"))
+					} else if isMeasureBoundary(pos % models.MeasureLength) {
+						// Add subtle highlighting for measure boundaries
+						style = style.Foreground(lipgloss.Color("8"))
+					}
+
+					line += style.Render(string(char))
+				}
+
+				// Add spacing between measures (except for the last one in the block)
+				if measureIdx < measuresInBlock-1 {
+					line += " "
+				}
+			}
+
+			line += lipgloss.NewStyle().
+				Foreground(lipgloss.Color("14")).
+				Render("|")
+
+			lines = append(lines, line)
+		}
+
+		// Add measure numbers below this block
+		measureLine := "   "
+		for measureIdx := 0; measureIdx < measuresInBlock; measureIdx++ {
+			actualMeasureIdx := measureStart + measureIdx
+			measureNum := fmt.Sprintf("%d", actualMeasureIdx+1)
+			// Center the measure number under each measure
+			padding := (models.MeasureLength - len(measureNum)) / 2
+			measureLine += strings.Repeat(" ", padding) + measureNum + strings.Repeat(" ", models.MeasureLength-padding-len(measureNum))
+
+			// Add spacing between measure numbers (except for the last one)
+			if measureIdx < measuresInBlock-1 {
+				measureLine += " "
+			}
+		}
+		lines = append(lines, measureLine)
+	}
+
+	// Add help information if requested
+	if m.showHelp {
+		helpLines := []string{
+			"",
+			"Measure Management:",
+			"  m                   - Add a new measure",
+			"  M                   - Remove last measure",
+			"  ?                   - Toggle this help",
+			"",
+			"Navigation:",
+			"  h/j/k/l    - Move cursor (left/down/up/right)",
+			"  w/b        - Move to next/previous measure",
+			"  g/$        - Move to start/end of measure",
+			"  Home/End   - Move to start/end of string",
+			"  PgUp/PgDn  - Page up/down scrolling",
+			"",
+			"Editing:",
+			"  i          - Enter insert mode",
+			"  Esc        - Exit insert mode",
+			"  x          - Delete character (normal mode)",
+			"  Backspace  - Delete character (insert mode)",
+		}
+		lines = append(lines, helpLines...)
 	}
 
 	content := strings.Join(lines, "\n")
 	m.viewport.SetContent(content)
+
+	// Update viewport to follow cursor if needed
+	m.updateViewportForCursor()
 
 	return m.viewport.View()
 }
 
 func (m TabEditorModel) HasChanged() bool {
 	return m.changed
+}
+
+func (m *TabEditorModel) updateViewportForCursor() {
+	// Calculate which line the cursor is on
+	cursorLine := m.cursor.String + (m.cursor.Position/models.MeasureLength)*7 // 6 strings + 1 measure number line
+
+	// If cursor is below visible area, scroll down
+	if cursorLine >= m.viewport.YOffset+m.viewport.Height {
+		m.viewport.ScrollDown(1)
+	}
+
+	// If cursor is above visible area, scroll up
+	if cursorLine < m.viewport.YOffset {
+		m.viewport.ScrollUp(1)
+	}
 }
 
 func (m *TabEditorModel) ResetChanged() {

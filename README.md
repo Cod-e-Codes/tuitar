@@ -7,9 +7,11 @@ A terminal-based guitar tablature editor built with Go and Bubble Tea.
 - **Intuitive Terminal Interface**: Vim-like keyboard navigation with modal editing
 - **Real-time Tab Editing**: Create and edit guitar tabs with instant visual feedback
 - **Modal Editing**: Separate Normal and Insert modes for efficient editing workflow
-- **MIDI Playback**: Play your tabs with visual highlighting (basic implementation)
+- **Audio Playback**: Visual highlighting during playback (audio output in development)
+- **Measure Management**: Add and remove measures dynamically with smart display wrapping
+- **Advanced Navigation**: Page scrolling, measure jumping, and intuitive cursor movement
 - **Local Storage**: SQLite-based tab management with auto-save functionality
-- **Tab Browser**: Browse, search, and organize your tabs with easy navigation
+- **Tab Browser**: Browse, delete, and organize your tabs with easy navigation
 - **Keyboard-driven**: Efficient workflows without mouse dependency
 - **Cross-platform**: Works on Linux, macOS, and Windows
 
@@ -54,14 +56,24 @@ go install github.com/Cod-e-Codes/tuitar@latest
 - `j` / `↓` - Move down
 - `k` / `↑` - Move up
 - `Enter` - Edit selected tab
+- `d` - Delete selected tab
 
 ### Editor Mode (Normal)
 - `h` / `←` - Move cursor left
 - `j` / `↓` - Move cursor down (to next string)
 - `k` / `↑` - Move cursor up (to previous string)
 - `l` / `→` - Move cursor right
+- `w` - Move to next measure boundary
+- `b` - Move to previous measure boundary
+- `g` - Move to beginning of current measure
+- `$` - Move to end of current measure
+- `Home` - Move to beginning of string
+- `End` - Move to end of string
+- `PgUp` / `PgDn` - Page up/down scrolling
 - `x` - Delete fret (replace with dash)
 - `Space` - Play/pause tab
+- `m` - Add new measure
+- `M` - Remove last measure
 - `i` - Switch to insert mode
 - `Tab` - Return to browser
 - `Esc` - Stay in normal mode
@@ -133,15 +145,20 @@ go build -o tuitar
 - [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
 - [Lipgloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
 - [SQLite](https://github.com/mattn/go-sqlite3) - Local database
+- [Beep](https://github.com/faiface/beep) - Audio playback library
 
 ## Tips & Tricks
 
 - **Quick Start**: Press `Ctrl+N` to create a new tab and start editing immediately
 - **Save Often**: Use `Ctrl+S` to save your work - changes are highlighted when unsaved
 - **Navigation**: Use `hjkl` keys for faster navigation without leaving home row
+- **Measure Navigation**: Use `w`/`b` to jump between measures, `g`/`$` for measure boundaries
+- **Page Scrolling**: Use `PgUp`/`PgDn` for fast scrolling through long tabs
+- **Measure Management**: Use `m` to add measures, `M` to remove them - they display side by side
 - **Insert Flow**: In Insert mode, type fret numbers quickly - the cursor advances automatically
 - **Error Correction**: Use `x` in Normal mode for quick deletions, or `Backspace` in Insert mode
 - **Mode Awareness**: Watch the mode indicator to know which editing mode you're in
+- **Tab Management**: Use `d` in browser mode to delete unwanted tabs
 
 ## Contributing
 
@@ -157,7 +174,11 @@ MIT License - see LICENSE file for details
 
 ## Roadmap
 
-- [ ] Full MIDI playback with actual audio output
+- [x] Visual playback highlighting (using Beep library)
+- [x] Measure management (add/remove measures dynamically)
+- [x] Advanced navigation (page scrolling, measure jumping)
+- [x] Tab deletion functionality
+- [ ] Audio output (visual playback works, but no sound yet)
 - [ ] Advanced tab notation (bends, slides, hammer-ons, pull-offs)
 - [ ] Multi-instrument support (bass, drums, etc.)
 - [ ] Tab sharing
