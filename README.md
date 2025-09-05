@@ -13,7 +13,7 @@ A terminal-based guitar tablature editor built with Go and Bubble Tea.
 - **Local Storage**: SQLite-based tab management with auto-save functionality
 - **Tab Browser**: Browse, delete, and organize your tabs with easy navigation
 - **Keyboard-driven**: Efficient workflows without mouse dependency
-- **Cross-platform**: Pre-built binaries for Windows, Linux, and Android
+- **Cross-platform**: Pre-built binaries for Windows and Linux
 
 ## Screenshots
 
@@ -30,7 +30,6 @@ Download the latest release for your platform:
 
 - **Windows AMD64**: [tuitar-windows-amd64.exe](https://github.com/Cod-e-Codes/tuitar/releases/latest/download/tuitar-windows-amd64.exe)
 - **Linux AMD64**: [tuitar-linux-amd64](https://github.com/Cod-e-Codes/tuitar/releases/latest/download/tuitar-linux-amd64)
-- **Android ARM64**: [tuitar-android-arm64](https://github.com/Cod-e-Codes/tuitar/releases/latest/download/tuitar-android-arm64)
 
 ### From Source
 
@@ -188,7 +187,7 @@ Check out the [Releases page](https://github.com/Cod-e-Codes/tuitar/releases) fo
 
 ### Current Release: v1.0.0
 
-- ✅ Cross-platform builds (Windows, Linux, Android)
+- ✅ Cross-platform builds (Windows, Linux)
 - ✅ Modal editing with Vim-like navigation
 - ✅ Measure management and advanced navigation
 - ✅ Visual playback highlighting
