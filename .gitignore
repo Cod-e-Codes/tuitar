@@ -30,6 +30,10 @@ go.work.sum
 # Database files
 tabs.db
 
+# Build outputs
+build/
+tuitar-*
+
 # Editor/IDE
 # .idea/
 # .vscode/

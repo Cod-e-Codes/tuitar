@@ -1,3 +1,6 @@
+//go:build cgo
+// +build cgo
+
 // internal/audio/player.go
 package audio
 
