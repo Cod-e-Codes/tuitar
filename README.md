@@ -10,10 +10,11 @@ A terminal-based guitar tablature editor built with Go and Bubble Tea.
 - **Audio Playback**: Real-time audio playback with visual highlighting during playback
 - **Measure Management**: Add and remove measures dynamically with smart display wrapping
 - **Advanced Navigation**: Page scrolling, measure jumping, and intuitive cursor movement
-- **Local Storage**: SQLite-based tab management with auto-save functionality
+- **Local Storage**: SQLite-based tab management with auto-save functionality (CGO-free)
 - **Tab Browser**: Browse, delete, and organize your tabs with easy navigation
 - **Keyboard-driven**: Efficient workflows without mouse dependency
 - **Cross-platform**: Pre-built binaries for Windows and Linux
+- **CGO-free**: Uses pure Go dependencies for better cross-compilation and deployment
 
 ## Screenshots
 
@@ -149,9 +150,9 @@ Tuitar features real-time audio playback using synthesized guitar tones:
 The application follows a clean architecture pattern:
 
 - `internal/models/` - Core data structures and business logic
-- `internal/storage/` - Data persistence layer (SQLite)
+- `internal/storage/` - Data persistence layer (SQLite with modernc.org/sqlite)
 - `internal/ui/` - Bubble Tea UI components and views  
-- `internal/audio/` - Real-time audio playback using Beep library
+- `internal/audio/` - Real-time audio playback using gopxl/beep library
 - `internal/midi/` - MIDI playback functionality (basic implementation)
 
 ## Building from Source
@@ -182,8 +183,8 @@ go build -o tuitar
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
 - [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
 - [Lipgloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
-- [SQLite](https://github.com/mattn/go-sqlite3) - Local database
-- [Beep](https://github.com/faiface/beep) - Audio playback library
+- [modernc.org/sqlite](https://modernc.org/sqlite) - Pure Go SQLite driver (CGO-free)
+- [gopxl/beep](https://github.com/gopxl/beep) - Audio playback library (updated fork)
 
 ## Tips & Tricks
 
@@ -218,7 +219,7 @@ Check out the [Releases page](https://github.com/Cod-e-Codes/tuitar/releases) fo
 
 ## Roadmap
 
-- [x] Audio playback (fully implemented with Beep library)
+- [x] Audio playback (fully implemented with gopxl/beep library)
 - [x] Visual playback highlighting
 - [x] Measure management (add/remove measures dynamically)
 - [x] Advanced navigation (page scrolling, measure jumping)

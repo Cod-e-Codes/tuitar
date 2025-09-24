@@ -1,6 +1,3 @@
-//go:build cgo
-// +build cgo
-
 // internal/audio/player.go
 package audio
 
@@ -12,10 +9,9 @@ import (
 	"time"
 
 	"github.com/Cod-e-Codes/tuitar/internal/models"
-	"github.com/faiface/beep"
-	"github.com/faiface/beep/effects"
-	"github.com/faiface/beep/generators"
-	"github.com/faiface/beep/speaker"
+	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/effects"
+	"github.com/gopxl/beep/speaker"
 )
 
 type Player struct {
@@ -52,10 +48,10 @@ func NewPlayer() *Player {
 	}
 
 	mixer := &beep.Mixer{}
-	
+
 	// Create a control wrapper for the mixer
 	ctrl := &beep.Ctrl{Streamer: mixer, Paused: true}
-	
+
 	// Play the mixer through the speaker
 	speaker.Play(ctrl)
 
@@ -118,7 +114,7 @@ func (p *Player) Stop() {
 		p.highlighted = nil
 		p.position = 0
 		p.playbackTime = 0
-		
+
 		// Pause the mixer and clear it
 		speaker.Lock()
 		p.ctrl.Paused = true
@@ -197,13 +193,13 @@ func (p *Player) playbackLoop() {
 		p.highlighted = nil
 		p.position = 0
 		p.playbackTime = 0
-		
+
 		// Pause and clear mixer
 		speaker.Lock()
 		p.ctrl.Paused = true
 		p.mixer.Clear()
 		speaker.Unlock()
-		
+
 		p.mu.Unlock()
 		fmt.Println("Playback loop ended")
 	}()
@@ -283,11 +279,7 @@ func (p *Player) playbackLoop() {
 
 func (p *Player) playNote(note PlayableNote) {
 	// Create a sine wave generator for the note
-	generator, err := generators.SinTone(p.sampleRate, int(note.Frequency))
-	if err != nil {
-		fmt.Printf("Error creating tone generator: %v\n", err)
-		return
-	}
+	generator := SinTone(note.Frequency, p.sampleRate)
 
 	// Apply volume control
 	volume := &effects.Volume{
@@ -330,4 +322,23 @@ func (p *Player) SetTempo(tempo int) {
 			p.currentTab.Tempo = tempo
 		}
 	}
+}
+
+// SinTone generates a sine wave at the specified frequency and sample rate
+func SinTone(freq float64, sr beep.SampleRate) beep.Streamer {
+	const twoPi = 2 * math.Pi
+	phase := 0.0
+	step := twoPi * freq / float64(sr)
+
+	return beep.StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
+		for i := range samples {
+			samples[i][0] = math.Sin(phase)
+			samples[i][1] = samples[i][0]
+			phase += step
+			if phase >= twoPi {
+				phase -= twoPi
+			}
+		}
+		return len(samples), true
+	})
 }
