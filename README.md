@@ -7,7 +7,7 @@ A terminal-based guitar tablature editor built with Go and Bubble Tea.
 - **Intuitive Terminal Interface**: Vim-like keyboard navigation with modal editing
 - **Real-time Tab Editing**: Create and edit guitar tabs with instant visual feedback
 - **Modal Editing**: Separate Normal and Insert modes for efficient editing workflow
-- **Audio Playback**: Visual highlighting during playback (audio output in development)
+- **Audio Playback**: Real-time audio playback with visual highlighting during playback
 - **Measure Management**: Add and remove measures dynamically with smart display wrapping
 - **Advanced Navigation**: Page scrolling, measure jumping, and intuitive cursor movement
 - **Local Storage**: SQLite-based tab management with auto-save functionality
@@ -23,6 +23,22 @@ A terminal-based guitar tablature editor built with Go and Bubble Tea.
 </p>
 
 ## Installation
+
+### System Requirements
+
+**Linux (including Arch):**
+```bash
+# For audio support, install ALSA libraries
+sudo pacman -S alsa-lib
+
+# Or if using PulseAudio/PipeWire
+sudo pacman -S libpulse pipewire-pulse pipewire-alsa
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install libasound2-dev
+```
 
 ### Pre-built Binaries (Recommended)
 
@@ -80,7 +96,7 @@ go install github.com/Cod-e-Codes/tuitar@latest
 - `End` - Move to end of string
 - `PgUp` / `PgDn` - Page up/down scrolling
 - `x` - Delete fret (replace with dash)
-- `Space` - Play/pause tab
+- `Space` - Play/pause tab (with real audio output)
 - `m` - Add new measure
 - `M` - Remove last measure
 - `i` - Switch to insert mode
@@ -102,6 +118,7 @@ Tuitar uses a modal editing system inspired by Vim:
    - Use arrow keys or `hjkl` to move the cursor
    - Press `i` to enter Insert mode at the current position
    - Press `x` to delete the fret number at cursor (replaces with `-`)
+   - Press `Space` to play/pause the tab with audio output
 
 2. **Insert Mode**: Type fret numbers and navigate
    - Type `0-9` to insert fret numbers
@@ -114,7 +131,18 @@ Tuitar uses a modal editing system inspired by Vim:
    - Current cursor position is highlighted
    - Insert mode shows with yellow highlighting
    - Normal mode shows with blue highlighting
+   - Playback positions are highlighted in cyan
    - Mode indicator shows current editing mode
+
+## Audio Playback
+
+Tuitar features real-time audio playback using synthesized guitar tones:
+
+- **Accurate Frequencies**: Uses standard guitar tuning with proper fret calculations
+- **Real-time Highlighting**: Visual feedback shows currently playing notes
+- **Tempo Control**: Respects tab tempo settings (default 120 BPM)
+- **Multiple Strings**: Plays chords and multi-string passages correctly
+- **High Quality**: 44.1kHz sample rate with volume control
 
 ## Project Structure
 
@@ -123,6 +151,7 @@ The application follows a clean architecture pattern:
 - `internal/models/` - Core data structures and business logic
 - `internal/storage/` - Data persistence layer (SQLite)
 - `internal/ui/` - Bubble Tea UI components and views  
+- `internal/audio/` - Real-time audio playback using Beep library
 - `internal/midi/` - MIDI playback functionality (basic implementation)
 
 ## Building from Source
@@ -134,7 +163,7 @@ cd tuitar
 ```
 
 ```bash
-# Install dependencies
+# Install dependencies (ensure audio libraries are installed first)
 go mod tidy
 ```
 
@@ -168,6 +197,8 @@ go build -o tuitar
 - **Error Correction**: Use `x` in Normal mode for quick deletions, or `Backspace` in Insert mode
 - **Mode Awareness**: Watch the mode indicator to know which editing mode you're in
 - **Tab Management**: Use `d` in browser mode to delete unwanted tabs
+- **Audio Playback**: Press `Space` to hear your tabs played back with realistic guitar tones
+- **Volume Control**: Audio is automatically balanced to prevent distortion
 
 ## Contributing
 
@@ -185,22 +216,16 @@ MIT License - see LICENSE file for details
 
 Check out the [Releases page](https://github.com/Cod-e-Codes/tuitar/releases) for the latest version and changelog.
 
-### Current Release: v1.0.0
-
-- ✅ Cross-platform builds (Windows, Linux)
-- ✅ Modal editing with Vim-like navigation
-- ✅ Measure management and advanced navigation
-- ✅ Visual playback highlighting
-- ✅ Tab browser with delete functionality
-- ✅ SQLite-based local storage
-
 ## Roadmap
 
-- [x] Visual playback highlighting (using Beep library)
+- [x] Audio playback (fully implemented with Beep library)
+- [x] Visual playback highlighting
 - [x] Measure management (add/remove measures dynamically)
 - [x] Advanced navigation (page scrolling, measure jumping)
 - [x] Tab deletion functionality
-- [ ] Audio output (visual playback works, but no sound yet)
 - [ ] Advanced tab notation (bends, slides, hammer-ons, pull-offs)
 - [ ] Multi-instrument support (bass, drums, etc.)
 - [ ] Tab sharing
+- [ ] MIDI export functionality
+- [ ] Custom tuning support
+- [ ] Metronome functionality

@@ -30,6 +30,7 @@ type Player struct {
 	playbackTime time.Duration
 	sampleRate   beep.SampleRate
 	mixer        *beep.Mixer
+	ctrl         *beep.Ctrl
 }
 
 type PlayableNote struct {
@@ -51,12 +52,19 @@ func NewPlayer() *Player {
 	}
 
 	mixer := &beep.Mixer{}
+	
+	// Create a control wrapper for the mixer
+	ctrl := &beep.Ctrl{Streamer: mixer, Paused: true}
+	
+	// Play the mixer through the speaker
+	speaker.Play(ctrl)
 
 	return &Player{
 		tempo:      120,
 		stopChan:   make(chan bool, 1),
 		sampleRate: sampleRate,
 		mixer:      mixer,
+		ctrl:       ctrl,
 	}
 }
 
@@ -86,6 +94,12 @@ func (p *Player) PlayTab(tab *models.Tab) error {
 	default:
 	}
 
+	// Clear the mixer and unpause playback
+	p.mixer.Clear()
+	speaker.Lock()
+	p.ctrl.Paused = false
+	speaker.Unlock()
+
 	go p.playbackLoop()
 
 	return nil
@@ -104,6 +118,12 @@ func (p *Player) Stop() {
 		p.highlighted = nil
 		p.position = 0
 		p.playbackTime = 0
+		
+		// Pause the mixer and clear it
+		speaker.Lock()
+		p.ctrl.Paused = true
+		p.mixer.Clear()
+		speaker.Unlock()
 	}
 }
 
@@ -157,7 +177,7 @@ func (p *Player) convertTabToNotes(tab *models.Tab) []PlayableNote {
 						Frequency: frequency,
 						Start:     time.Duration(pos) * beatDuration,
 						Duration:  beatDuration * 3 / 4, // Note length (slightly shorter than beat)
-						Volume:    0.3,                  // Moderate volume
+						Volume:    0.1,                  // Lower volume to prevent distortion
 						String:    stringIdx,
 						Position:  pos,
 					}
@@ -177,6 +197,13 @@ func (p *Player) playbackLoop() {
 		p.highlighted = nil
 		p.position = 0
 		p.playbackTime = 0
+		
+		// Pause and clear mixer
+		speaker.Lock()
+		p.ctrl.Paused = true
+		p.mixer.Clear()
+		speaker.Unlock()
+		
 		p.mu.Unlock()
 		fmt.Println("Playback loop ended")
 	}()
@@ -274,8 +301,10 @@ func (p *Player) playNote(note PlayableNote) {
 	duration := p.sampleRate.N(note.Duration)
 	limited := beep.Take(duration, volume)
 
-	// Add to mixer
+	// Add to mixer (this will now be heard because the mixer is playing through speaker)
+	speaker.Lock()
 	p.mixer.Add(limited)
+	speaker.Unlock()
 }
 
 func (p *Player) GetPlaybackInfo() (position int, totalLength int, isPlaying bool) {
