@@ -4,6 +4,7 @@ package audio
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"strconv"
 	"sync"
 	"time"
@@ -173,7 +174,7 @@ func (p *Player) convertTabToNotes(tab *models.Tab) []PlayableNote {
 						Frequency: frequency,
 						Start:     time.Duration(pos) * beatDuration,
 						Duration:  beatDuration * 3 / 4, // Note length (slightly shorter than beat)
-						Volume:    0.1,                  // Lower volume to prevent distortion
+						Volume:    0.3,                  // Increased volume for guitar synthesis
 						String:    stringIdx,
 						Position:  pos,
 					}
@@ -188,6 +189,9 @@ func (p *Player) convertTabToNotes(tab *models.Tab) []PlayableNote {
 
 func (p *Player) playbackLoop() {
 	defer func() {
+		// Add a small delay before cleanup to let the last note finish playing
+		time.Sleep(200 * time.Millisecond)
+
 		p.mu.Lock()
 		p.isPlaying = false
 		p.highlighted = nil
@@ -254,7 +258,7 @@ func (p *Player) playbackLoop() {
 					})
 					notesAtPosition++
 
-					// Play the note using beep
+					// Play the note using Karplus-Strong synthesis
 					p.playNote(note)
 				}
 			}
@@ -266,7 +270,8 @@ func (p *Player) playbackLoop() {
 			p.position++
 
 			// Check if we've reached the end
-			if p.position > maxPos {
+			// Add a buffer to ensure the last note has time to play
+			if p.position > maxPos+2 {
 				fmt.Println("Reached end of tab")
 				p.mu.Unlock()
 				return
@@ -278,8 +283,8 @@ func (p *Player) playbackLoop() {
 }
 
 func (p *Player) playNote(note PlayableNote) {
-	// Create a sine wave generator for the note
-	generator := SinTone(note.Frequency, p.sampleRate)
+	// Create a Karplus-Strong synthesized guitar note
+	generator := NewKarplusStrong(note.Frequency, p.sampleRate, note.Duration)
 
 	// Apply volume control
 	volume := &effects.Volume{
@@ -293,7 +298,7 @@ func (p *Player) playNote(note PlayableNote) {
 	duration := p.sampleRate.N(note.Duration)
 	limited := beep.Take(duration, volume)
 
-	// Add to mixer (this will now be heard because the mixer is playing through speaker)
+	// Add to mixer
 	speaker.Lock()
 	p.mixer.Add(limited)
 	speaker.Unlock()
@@ -324,21 +329,85 @@ func (p *Player) SetTempo(tempo int) {
 	}
 }
 
-// SinTone generates a sine wave at the specified frequency and sample rate
-func SinTone(freq float64, sr beep.SampleRate) beep.Streamer {
-	const twoPi = 2 * math.Pi
-	phase := 0.0
-	step := twoPi * freq / float64(sr)
+// KarplusStrong implements the Karplus-Strong string synthesis algorithm
+type KarplusStrong struct {
+	delayLine     []float64
+	index         int
+	sampleRate    beep.SampleRate
+	dampingFactor float64
+	samples       int64
+	maxSamples    int64
+}
 
-	return beep.StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
-		for i := range samples {
-			samples[i][0] = math.Sin(phase)
-			samples[i][1] = samples[i][0]
-			phase += step
-			if phase >= twoPi {
-				phase -= twoPi
-			}
+// NewKarplusStrong creates a new Karplus-Strong synthesizer for the given frequency
+func NewKarplusStrong(frequency float64, sampleRate beep.SampleRate, duration time.Duration) *KarplusStrong {
+	// Calculate delay line length based on frequency
+	delayLength := int(float64(sampleRate) / frequency)
+	if delayLength < 1 {
+		delayLength = 1
+	}
+
+	// Initialize delay line with white noise
+	delayLine := make([]float64, delayLength)
+	for i := range delayLine {
+		delayLine[i] = (rand.Float64() - 0.5) * 2.0 // Random values between -1 and 1
+	}
+
+	// Damping factor affects how quickly the string decays
+	// Higher frequencies decay faster (more realistic)
+	dampingFactor := 0.995
+	if frequency > 300 {
+		dampingFactor = 0.990 // Higher strings decay faster
+	}
+	if frequency > 500 {
+		dampingFactor = 0.985
+	}
+
+	maxSamples := int64(float64(sampleRate) * duration.Seconds())
+
+	return &KarplusStrong{
+		delayLine:     delayLine,
+		index:         0,
+		sampleRate:    sampleRate,
+		dampingFactor: dampingFactor,
+		samples:       0,
+		maxSamples:    maxSamples,
+	}
+}
+
+// Stream implements the beep.Streamer interface
+func (ks *KarplusStrong) Stream(samples [][2]float64) (n int, ok bool) {
+	for i := range samples {
+		if ks.samples >= ks.maxSamples {
+			return i, false // End of stream
 		}
-		return len(samples), true
-	})
+
+		// Get current sample from delay line
+		currentSample := ks.delayLine[ks.index]
+
+		// Calculate next index (circular buffer)
+		nextIndex := (ks.index + 1) % len(ks.delayLine)
+
+		// Apply Karplus-Strong algorithm:
+		// New sample = average of current and next, with damping
+		newSample := (currentSample + ks.delayLine[nextIndex]) * 0.5 * ks.dampingFactor
+
+		// Store the new sample back in the delay line
+		ks.delayLine[ks.index] = newSample
+
+		// Output the current sample (stereo)
+		samples[i][0] = currentSample
+		samples[i][1] = currentSample
+
+		// Move to next position in delay line
+		ks.index = nextIndex
+		ks.samples++
+	}
+
+	return len(samples), true
+}
+
+// Err implements the beep.Streamer interface
+func (ks *KarplusStrong) Err() error {
+	return nil
 }

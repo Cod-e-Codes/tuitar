@@ -1,0 +1,80 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: true
+    
+    - name: Build for all platforms
+      run: |
+        # Create build directory
+        mkdir -p build
+        
+        # Build for all platforms
+        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build/tuitar-linux-amd64 .
+        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build/tuitar-linux-arm64 .
+        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o build/tuitar-windows-amd64.exe .
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build/tuitar-darwin-amd64 .
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build/tuitar-darwin-arm64 .
+        
+        # Make binaries executable
+        chmod +x build/tuitar-linux-*
+        chmod +x build/tuitar-darwin-*
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the latest tag
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        
+        if [ -z "$LATEST_TAG" ]; then
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "## Initial Release" >> $GITHUB_OUTPUT
+          echo "- First release of tuitar" >> $GITHUB_OUTPUT
+          echo "- Karplus-Strong string synthesis for realistic guitar sounds" >> $GITHUB_OUTPUT
+          echo "- Terminal-based tab editor with vim-like navigation" >> $GITHUB_OUTPUT
+          echo "- SQLite-based tab storage" >> $GITHUB_OUTPUT
+          echo "- Cross-platform support (Windows, Linux, macOS)" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "## Changes since $LATEST_TAG" >> $GITHUB_OUTPUT
+          git log --pretty=format:"- %s" $LATEST_TAG..HEAD >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event.inputs.version }}
+        name: Release ${{ github.event.inputs.version }}
+        body: ${{ steps.changelog.outputs.changelog }}
+        files: build/*
+        draft: false
+        prerelease: ${{ github.event.inputs.prerelease }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

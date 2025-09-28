@@ -1,0 +1,147 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: true
+    
+    - name: Run tests
+      run: go test -v ./...
+    
+    - name: Run linter
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            ext: ""
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            ext: ""
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            ext: ".exe"
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            ext: ""
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            ext: ""
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: true
+    
+    - name: Build
+      run: |
+        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="-s -w" -o tuitar${{ matrix.ext }} .
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: tuitar-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: tuitar${{ matrix.ext }}
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: true
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        find . -name "tuitar*" -type f -executable -exec cp {} release-assets/ \;
+        find . -name "tuitar*.exe" -type f -exec cp {} release-assets/ \;
+        
+        # Rename files to include platform info
+        cd release-assets
+        for file in *; do
+          if [[ "$file" == "tuitar" ]]; then
+            mv "$file" "tuitar-linux-amd64"
+          elif [[ "$file" == "tuitar.exe" ]]; then
+            mv "$file" "tuitar-windows-amd64.exe"
+          fi
+        done
+        
+        ls -la
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the latest tag
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        
+        if [ -z "$LATEST_TAG" ]; then
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "## Initial Release" >> $GITHUB_OUTPUT
+          echo "- First release of tuitar" >> $GITHUB_OUTPUT
+          echo "- Karplus-Strong string synthesis for realistic guitar sounds" >> $GITHUB_OUTPUT
+          echo "- Terminal-based tab editor with vim-like navigation" >> $GITHUB_OUTPUT
+          echo "- SQLite-based tab storage" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "## Changes since $LATEST_TAG" >> $GITHUB_OUTPUT
+          git log --pretty=format:"- %s" $LATEST_TAG..HEAD >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
+        body: ${{ steps.changelog.outputs.changelog }}
+        files: release-assets/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -7,7 +7,7 @@ A terminal-based guitar tablature editor built with Go and Bubble Tea.
 - **Intuitive Terminal Interface**: Vim-like keyboard navigation with modal editing
 - **Real-time Tab Editing**: Create and edit guitar tabs with instant visual feedback
 - **Modal Editing**: Separate Normal and Insert modes for efficient editing workflow
-- **Audio Playback**: Real-time audio playback with visual highlighting during playback
+- **Audio Playback**: Real-time audio playback with Karplus-Strong string synthesis and visual highlighting
 - **Measure Management**: Add and remove measures dynamically with smart display wrapping
 - **Advanced Navigation**: Page scrolling, measure jumping, and intuitive cursor movement
 - **Local Storage**: SQLite-based tab management with auto-save functionality (CGO-free)
@@ -137,12 +137,14 @@ Tuitar uses a modal editing system inspired by Vim:
 
 ## Audio Playback
 
-Tuitar features real-time audio playback using synthesized guitar tones:
+Tuitar features real-time audio playback using the Karplus-Strong string synthesis algorithm:
 
-- **Accurate Frequencies**: Uses standard guitar tuning with proper fret calculations
+- **Realistic Guitar Sound**: Uses Karplus-Strong algorithm for authentic plucked string timbre
+- **Accurate Frequencies**: Standard guitar tuning with proper fret calculations
 - **Real-time Highlighting**: Visual feedback shows currently playing notes
 - **Tempo Control**: Respects tab tempo settings (default 120 BPM)
 - **Multiple Strings**: Plays chords and multi-string passages correctly
+- **Natural Decay**: String-specific damping for realistic sound decay
 - **High Quality**: 44.1kHz sample rate with volume control
 
 ## Project Structure
@@ -198,7 +200,7 @@ go build -o tuitar
 - **Error Correction**: Use `x` in Normal mode for quick deletions, or `Backspace` in Insert mode
 - **Mode Awareness**: Watch the mode indicator to know which editing mode you're in
 - **Tab Management**: Use `d` in browser mode to delete unwanted tabs
-- **Audio Playback**: Press `Space` to hear your tabs played back with realistic guitar tones
+- **Audio Playback**: Press `Space` to hear your tabs played back with Karplus-Strong string synthesis
 - **Volume Control**: Audio is automatically balanced to prevent distortion
 
 ## Contributing
@@ -208,6 +210,31 @@ go build -o tuitar
 3. Make your changes
 4. Add tests if applicable
 5. Submit a pull request
+
+### Development Setup
+
+The project uses GitHub Actions for CI/CD:
+
+- **Automated Testing**: Runs tests and linting on every push and PR
+- **Multi-platform Builds**: Automatically builds for Windows, Linux, and macOS
+- **Automated Releases**: Creates releases with proper versioning and changelogs
+- **Manual Releases**: Use the "Manual Release" workflow for semantic versioning
+
+### Building for Development
+
+```bash
+# Run tests
+go test ./...
+
+# Run linter
+golangci-lint run
+
+# Build for your platform
+go build -o tuitar
+
+# Build for specific platform
+GOOS=windows GOARCH=amd64 go build -o tuitar.exe
+```
 
 ## License
 
@@ -219,7 +246,7 @@ Check out the [Releases page](https://github.com/Cod-e-Codes/tuitar/releases) fo
 
 ## Roadmap
 
-- [x] Audio playback (fully implemented with gopxl/beep library)
+- [x] Audio playback (fully implemented with Karplus-Strong string synthesis)
 - [x] Visual playback highlighting
 - [x] Measure management (add/remove measures dynamically)
 - [x] Advanced navigation (page scrolling, measure jumping)
