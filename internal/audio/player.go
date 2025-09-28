@@ -350,7 +350,7 @@ func NewKarplusStrong(frequency float64, sampleRate beep.SampleRate, duration ti
 	// Initialize delay line with white noise
 	delayLine := make([]float64, delayLength)
 	for i := range delayLine {
-		delayLine[i] = (rand.Float64() - 0.5) * 2.0 // Random values between -1 and 1
+		delayLine[i] = (rand.Float64() - 0.5) * 2.0 // Random values between -1 and 1 (nolint:gosec) // OK for audio synthesis
 	}
 
 	// Damping factor affects how quickly the string decays

@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"time"
 
+	_ "modernc.org/sqlite" // SQLite driver
+
 	"github.com/Cod-e-Codes/tuitar/internal/models"
-	_ "modernc.org/sqlite"
 )
 
 type SQLiteStorage struct {
@@ -55,7 +56,7 @@ func (s *SQLiteStorage) migrate() error {
 
 	// Add measures column if it doesn't exist (for existing databases)
 	alterQuery := `ALTER TABLE tabs ADD COLUMN measures INTEGER DEFAULT 4;`
-	s.db.Exec(alterQuery) // Ignore error if column already exists
+	_, _ = s.db.Exec(alterQuery) // Ignore error if column already exists
 
 	return nil
 }
@@ -109,8 +110,8 @@ func (s *SQLiteStorage) LoadTab(id int) (*models.Tab, error) {
 		return nil, err
 	}
 
-	json.Unmarshal([]byte(contentJSON), &tab.Content)
-	json.Unmarshal([]byte(tuningJSON), &tab.Tuning)
+	_ = json.Unmarshal([]byte(contentJSON), &tab.Content)
+	_ = json.Unmarshal([]byte(tuningJSON), &tab.Tuning)
 
 	// Set default measures if not set
 	if tab.Measures == 0 {
@@ -140,8 +141,8 @@ func (s *SQLiteStorage) LoadAllTabs() ([]models.Tab, error) {
 			continue
 		}
 
-		json.Unmarshal([]byte(contentJSON), &tab.Content)
-		json.Unmarshal([]byte(tuningJSON), &tab.Tuning)
+		_ = json.Unmarshal([]byte(contentJSON), &tab.Content)
+		_ = json.Unmarshal([]byte(tuningJSON), &tab.Tuning)
 
 		// Set default measures if not set
 		if tab.Measures == 0 {
@@ -186,8 +187,8 @@ func (s *SQLiteStorage) SearchTabs(query string) ([]models.Tab, error) {
 			continue
 		}
 
-		json.Unmarshal([]byte(contentJSON), &tab.Content)
-		json.Unmarshal([]byte(tuningJSON), &tab.Tuning)
+		_ = json.Unmarshal([]byte(contentJSON), &tab.Content)
+		_ = json.Unmarshal([]byte(tuningJSON), &tab.Tuning)
 
 		// Set default measures if not set
 		if tab.Measures == 0 {

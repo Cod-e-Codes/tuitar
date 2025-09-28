@@ -30,7 +30,7 @@ func (m StatusBarModel) View() string {
 			Width(80).
 			Render(" tuitar - Ready")
 	}
-	
+
 	// Show message for 3 seconds, then clear
 	if time.Since(m.timestamp) > 3*time.Second {
 		return lipgloss.NewStyle().
@@ -39,7 +39,7 @@ func (m StatusBarModel) View() string {
 			Width(80).
 			Render(" Guitar Tab TUI - Ready")
 	}
-	
+
 	return lipgloss.NewStyle().
 		Background(lipgloss.Color("11")).
 		Foreground(lipgloss.Color("0")).
