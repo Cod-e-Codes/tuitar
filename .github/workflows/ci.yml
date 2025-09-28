@@ -97,20 +97,12 @@ jobs:
     - name: Prepare release assets
       run: |
         mkdir -p release-assets
-        find . -name "tuitar*" -type f -executable -exec cp {} release-assets/ \;
-        find . -name "tuitar*.exe" -type f -exec cp {} release-assets/ \;
+        # Copy artifacts from their downloaded directories
+        cp tuitar-linux-amd64/tuitar release-assets/tuitar-linux-amd64
+        cp tuitar-darwin-amd64/tuitar release-assets/tuitar-darwin-amd64
+        chmod +x release-assets/*
         
-        # Rename files to include platform info
-        cd release-assets
-        for file in *; do
-          if [[ "$file" == "tuitar" ]]; then
-            mv "$file" "tuitar-linux-amd64"
-          elif [[ "$file" == "tuitar.exe" ]]; then
-            mv "$file" "tuitar-windows-amd64.exe"
-          fi
-        done
-        
-        ls -la
+        ls -la release-assets/
     
     - name: Create Release
       uses: softprops/action-gh-release@v2
