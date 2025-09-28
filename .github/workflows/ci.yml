@@ -44,10 +44,6 @@ jobs:
             goos: linux
             goarch: amd64
             ext: ""
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-            ext: ".exe"
           - os: macos-latest
             goos: darwin
             goarch: amd64
