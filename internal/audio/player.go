@@ -10,10 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Cod-e-Codes/tuitar/internal/models"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/effects"
 	"github.com/gopxl/beep/speaker"
+
+	"github.com/Cod-e-Codes/tuitar/internal/models"
 )
 
 type Player struct {

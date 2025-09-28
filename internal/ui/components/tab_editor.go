@@ -311,18 +311,19 @@ func (m TabEditorModel) View() string {
 					char := content[pos]
 					style := lipgloss.NewStyle()
 
-					// Use if-else instead of switch to avoid gocritic warning
-					if m.cursor.String == i && m.cursor.Position == pos {
+					// Apply styling based on position state
+					switch {
+					case m.cursor.String == i && m.cursor.Position == pos:
 						// Highlight cursor position (takes precedence)
 						if m.editMode == models.EditInsert {
 							style = style.Background(lipgloss.Color("11")).Foreground(lipgloss.Color("0"))
 						} else {
 							style = style.Background(lipgloss.Color("12")).Foreground(lipgloss.Color("15"))
 						}
-					} else if isHighlighted(i, pos) {
+					case isHighlighted(i, pos):
 						// Highlight playback positions with cyan background
 						style = style.Background(lipgloss.Color("37")).Foreground(lipgloss.Color("0"))
-					} else if isMeasureBoundary(pos % models.MeasureLength) {
+					case isMeasureBoundary(pos % models.MeasureLength):
 						// Add subtle highlighting for measure boundaries
 						style = style.Foreground(lipgloss.Color("8"))
 					}

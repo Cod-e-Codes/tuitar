@@ -6,9 +6,10 @@ import (
 	"log"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/Cod-e-Codes/tuitar/internal/storage"
 	"github.com/Cod-e-Codes/tuitar/internal/ui"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
