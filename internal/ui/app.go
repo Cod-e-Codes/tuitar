@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Cod-e-Codes/tuitar/internal/audio"
-	"github.com/Cod-e-Codes/tuitar/internal/models"
-	"github.com/Cod-e-Codes/tuitar/internal/storage"
-	"github.com/Cod-e-Codes/tuitar/internal/ui/components"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/Cod-e-Codes/tuitar/internal/audio"
+	"github.com/Cod-e-Codes/tuitar/internal/models"
+	"github.com/Cod-e-Codes/tuitar/internal/storage"
+	"github.com/Cod-e-Codes/tuitar/internal/ui/components"
 )
 
 type inputMode int
@@ -288,8 +289,7 @@ func (m Model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		value := m.textInput.Value()
 		if value != "" {
-			switch m.inputMode {
-			case inputModeSave:
+			if m.inputMode == inputModeSave {
 				m.state.CurrentTab.Name = value
 				m.saveCurrentTab()
 			}

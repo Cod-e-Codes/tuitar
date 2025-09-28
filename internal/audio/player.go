@@ -2,9 +2,10 @@
 package audio
 
 import (
+	"crypto/rand"
 	"fmt"
 	"math"
-	"math/rand/v2"
+	"math/big"
 	"strconv"
 	"sync"
 	"time"
@@ -339,6 +340,20 @@ type KarplusStrong struct {
 	maxSamples    int64
 }
 
+// secureRandom generates a cryptographically secure random float between -1 and 1
+func secureRandom() float64 {
+	// Generate a random big.Int between 0 and 2^31-1
+	max := big.NewInt(1 << 31)
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		// Fallback to a deterministic value if crypto/rand fails
+		return 0.0
+	}
+
+	// Convert to float64 and scale to [-1, 1]
+	return (float64(n.Int64())/float64(1<<31))*2.0 - 1.0
+}
+
 // NewKarplusStrong creates a new Karplus-Strong synthesizer for the given frequency
 func NewKarplusStrong(frequency float64, sampleRate beep.SampleRate, duration time.Duration) *KarplusStrong {
 	// Calculate delay line length based on frequency
@@ -347,10 +362,10 @@ func NewKarplusStrong(frequency float64, sampleRate beep.SampleRate, duration ti
 		delayLength = 1
 	}
 
-	// Initialize delay line with white noise
+	// Initialize delay line with white noise using crypto/rand
 	delayLine := make([]float64, delayLength)
 	for i := range delayLine {
-		delayLine[i] = (rand.Float64() - 0.5) * 2.0 // Random values between -1 and 1
+		delayLine[i] = secureRandom() // Use cryptographically secure random values
 	}
 
 	// Damping factor affects how quickly the string decays

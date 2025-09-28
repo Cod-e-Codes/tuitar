@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Cod-e-Codes/tuitar/internal/models"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/Cod-e-Codes/tuitar/internal/models"
 )
 
 type HighlightUpdateMsg struct {
@@ -310,8 +311,9 @@ func (m TabEditorModel) View() string {
 					char := content[pos]
 					style := lipgloss.NewStyle()
 
-					// Highlight cursor position (takes precedence)
+					// Use if-else instead of switch to avoid gocritic warning
 					if m.cursor.String == i && m.cursor.Position == pos {
+						// Highlight cursor position (takes precedence)
 						if m.editMode == models.EditInsert {
 							style = style.Background(lipgloss.Color("11")).Foreground(lipgloss.Color("0"))
 						} else {

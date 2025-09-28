@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Cod-e-Codes/tuitar/internal/models"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/Cod-e-Codes/tuitar/internal/models"
 )
 
 type TabBrowserModel struct {
@@ -36,8 +37,7 @@ func (m *TabBrowserModel) SetSize(width, height int) {
 }
 
 func (m TabBrowserModel) Update(msg tea.Msg) (TabBrowserModel, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	if msg, ok := msg.(tea.KeyMsg); ok {
 		switch msg.String() {
 		case "k", "up":
 			if m.cursor > 0 {
