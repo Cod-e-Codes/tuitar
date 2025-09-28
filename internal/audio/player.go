@@ -344,8 +344,8 @@ type KarplusStrong struct {
 // secureRandom generates a cryptographically secure random float between -1 and 1
 func secureRandom() float64 {
 	// Generate a random big.Int between 0 and 2^31-1
-	max := big.NewInt(1 << 31)
-	n, err := rand.Int(rand.Reader, max)
+	maxValue := big.NewInt(1 << 31)
+	n, err := rand.Int(rand.Reader, maxValue)
 	if err != nil {
 		// Fallback to a deterministic value if crypto/rand fails
 		return 0.0
