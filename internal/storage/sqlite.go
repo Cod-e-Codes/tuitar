@@ -123,7 +123,8 @@ func (s *SQLiteStorage) LoadTab(id int) (*models.Tab, error) {
 
 func (s *SQLiteStorage) LoadAllTabs() ([]models.Tab, error) {
 	// Use explicit column order to match our struct
-	query := `SELECT id, name, artist, content, tuning, tempo, time_signature, measures, created_at, updated_at FROM tabs ORDER BY updated_at DESC`
+	query := `SELECT id, name, artist, content, tuning, tempo, time_signature, measures, 
+		created_at, updated_at FROM tabs ORDER BY updated_at DESC`
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err

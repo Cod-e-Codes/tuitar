@@ -36,7 +36,6 @@ linters:
     - dogsled
     - dupl
     - errcheck
-    - exportloopref
     - gci
     - gochecknoinits
     - goconst
@@ -44,7 +43,6 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - gomnd
     - goprintffuncname
     - gosec
     - gosimple
@@ -57,13 +55,11 @@ linters:
     - nolintlint
     - revive
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace
 
 issues:
