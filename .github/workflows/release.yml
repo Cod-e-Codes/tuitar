@@ -41,10 +41,8 @@ jobs:
         
         # Build for all platforms
         GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build/tuitar-linux-amd64 .
-        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build/tuitar-linux-arm64 .
         GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o build/tuitar-windows-amd64.exe .
         GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build/tuitar-darwin-amd64 .
-        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build/tuitar-darwin-arm64 .
         
         # Make binaries executable
         chmod +x build/tuitar-linux-*
